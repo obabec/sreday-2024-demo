@@ -1,0 +1,88 @@
+# postgres / postgres -- sredays (db name)
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgresql-credentials
+data:
+  POSTGRES_DB: c3JlZGF5cw==
+  POSTGRES_PASSWORD: cG9zdGdyZXM=
+  POSTGRES_USER: cG9zdGdyZXM=
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+spec:
+  selector:
+    app: postgresql
+    deployment: postgresql
+  ports:
+    - name: db
+      port: 5432
+      targetPort: 5432
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: postgresql
+  namespace: demo
+  labels:
+    app: postgresql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+      deployment: postgresql
+  template:
+    metadata:
+      labels:
+        app: postgresql
+        deployment: postgresql
+    spec:
+      containers:
+        - resources: {}
+          name: postgresql
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-credentials
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-credentials
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-credentials
+                  key: POSTGRES_USER
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          imagePullPolicy: Always
+          livenessProbe:
+            initialDelaySeconds: 30
+            tcpSocket:
+              port: 5432
+            timeoutSeconds: 1
+          readinessProbe:
+            exec:
+              command:
+                - "/bin/sh"
+                - "-i"
+                - "-c"
+                - "PGPASSWORD=${POSTGRES_PASSWORD} /usr/local/bin/psql -w -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c 'SELECT 1'"
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+          terminationMessagePolicy: File
+          terminationMessagePath: /dev/termination-log
+          image: quay.io/debezium/postgres:16-alpine
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+  strategy:
+    type: Recreate

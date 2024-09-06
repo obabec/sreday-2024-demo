@@ -1,0 +1,37 @@
+---
+apiVersion: debezium.io/v1alpha1
+kind: DebeziumServer
+metadata:
+  name: debezium-cdc
+spec:
+  image: quay.io/debezium/server:nightly
+  quarkus:
+    config:
+      log.level: INFO
+      log.console.json: false
+      kubernetes-config.enabled: true
+      kubernetes-config.secrets: postgresql-credentials
+  runtime:
+    metrics:
+      jmxExporter:
+        enabled: true
+  sink:
+    type: redis
+    config:
+      address: 'redis-service:6379'
+  source:
+    class: io.debezium.connector.postgresql.PostgresConnector
+    offset:
+      memory: {}
+    schemaHistory:
+      memory: {}
+    config:
+      database.hostname: postgresql
+      database.port: 5432
+      database.user: ${POSTGRES_USER}
+      database.password: ${POSTGRES_PASSWORD}
+      database.dbname: ${POSTGRES_DB}
+      table.include.list: public.outside_temp
+      topic.prefix: sredays
+      plugin.name: pgoutput
+      decimal.handling.mode: string
